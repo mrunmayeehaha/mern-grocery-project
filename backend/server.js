@@ -9,7 +9,11 @@ const app = express();
 
 connectDB();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://glowing-carnival-r4vg6jp96xv5c964-5173.app.github.dev",
+  })
+);
 app.use(express.json());
 app.use("/api/products", productRoutes);
 
