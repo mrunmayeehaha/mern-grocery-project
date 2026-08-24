@@ -1,50 +1,77 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function App() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [stock, setStock] = useState("");
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(
+          "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products"
+        );
+
+        const data = await response.json();
+
+        setProducts(data);
+      } catch (error) {
+        console.log("Error fetching products:", error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const product = {
-    name,
-    price,
-    category,
-    quantity,
+    const product = {
+      name,
+      price,
+      category,
+      stock,
+    };
+
+    console.log("Sending:", product);
+
+    try {
+      const response = await fetch(
+        "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(product),
+        }
+      );
+
+      console.log("Status:", response.status);
+
+      const data = await response.json();
+
+      console.log("Response:", data);
+
+      if (response.ok) {
+        alert("Product added!");
+
+        setProducts((prevProducts) => [...prevProducts, data]);
+
+        setName("");
+        setPrice("");
+        setCategory("");
+        setStock("");
+      } else {
+        alert("Failed to add product");
+      }
+    } catch (error) {
+      console.log("Error:", error);
+    }
   };
 
-  console.log("Sending:", product);
-
-  try {
-    const response = await fetch(
-      "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(product),
-      }
-    );
-
-    console.log("Status:", response.status);
-
-    const data = await response.json();
-
-    console.log("Response:", data);
-
-    if (response.ok) {
-      alert("Product added!");
-    } else {
-      alert("Failed to add product");
-    }
-  } catch (error) {
-    console.log("Error:", error);
-  }
-};
   return (
     <div>
       <h1>Grocery Store</h1>
@@ -73,13 +100,24 @@ function App() {
 
         <input
           type="number"
-          placeholder="Quantity"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
+          placeholder="Stock"
+          value={stock}
+          onChange={(e) => setStock(e.target.value)}
         />
 
         <button type="submit">Add Product</button>
       </form>
+
+      <h2>Products</h2>
+
+      {products.map((product) => (
+        <div key={product._id}>
+          <h3>{product.name}</h3>
+          <p>Price: ₹{product.price}</p>
+          <p>Category: {product.category}</p>
+          <p>Stock: {product.stock}</p>
+        </div>
+      ))}
     </div>
   );
 }
