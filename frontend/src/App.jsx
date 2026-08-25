@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 function App() {
   const BASE_URL =
-    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev";
+    "https://mern-grocery-project.onrender.com";
 
   const API_URL = `${BASE_URL}/api/products`;
   const AUTH_URL = `${BASE_URL}/api/auth`;
