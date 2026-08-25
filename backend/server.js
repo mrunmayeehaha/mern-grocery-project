@@ -9,13 +9,7 @@ const app = express();
 
 connectDB();
 
-app.use(
-    cors({
-        origin: "https://glowing-carnival-r4vg6jp96xv5c964-5173.app.github.dev",
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        allowedHeaders: ["Content-Type"]
-    })
-);
+app.use(cors());
 
 app.use(express.json());
 
@@ -25,8 +19,8 @@ app.get("/", (req, res) => {
     res.json({ message: "Grocery API is running" });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

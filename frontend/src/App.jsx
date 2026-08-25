@@ -6,80 +6,119 @@ function App() {
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState("");
   const [products, setProducts] = useState([]);
+  const [editingId, setEditingId] = useState(null);
 
+  const API_URL =
+    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products";
+
+  // GET products
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch(
-          "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products"
-        );
-
+        const response = await fetch(API_URL);
         const data = await response.json();
-
         setProducts(data);
       } catch (error) {
-        console.log("Error fetching products:", error);
+        console.error("Fetch error:", error);
       }
     };
 
     fetchProducts();
   }, []);
 
+  // ADD / UPDATE product
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const product = {
+    const productData = {
       name,
       price,
       category,
       stock,
     };
 
-    console.log("Sending:", product);
+    console.log("Sending:", productData);
 
     try {
-      const response = await fetch(
-        "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(product),
-        }
-      );
+      const url = editingId
+        ? `${API_URL}/${editingId}`
+        : API_URL;
+
+      const method = editingId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(productData),
+      });
 
       console.log("Status:", response.status);
 
       const data = await response.json();
 
-      console.log("Response:", data);
-
-      if (response.ok) {
-        alert("Product added!");
-
-        setProducts((prevProducts) => [...prevProducts, data]);
-
-        setName("");
-        setPrice("");
-        setCategory("");
-        setStock("");
-      } else {
-        alert("Failed to add product");
+      if (!response.ok) {
+        throw new Error(data.message || "Something went wrong");
       }
+
+      if (editingId) {
+        // Update product in list
+        setProducts(
+          products.map((product) =>
+            product._id === editingId ? data : product
+          )
+        );
+      } else {
+        // Add new product to list
+        setProducts([...products, data]);
+      }
+
+      // Clear form
+      setName("");
+      setPrice("");
+      setCategory("");
+      setStock("");
+      setEditingId(null);
     } catch (error) {
-      console.log("Error:", error);
+      console.error("Error:", error);
+    }
+  };
+
+  // EDIT product
+  const handleEdit = (product) => {
+    setName(product.name);
+    setPrice(product.price);
+    setCategory(product.category);
+    setStock(product.stock);
+    setEditingId(product._id);
+  };
+
+  // DELETE product
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete product");
+      }
+
+      setProducts(products.filter((product) => product._id !== id));
+    } catch (error) {
+      console.error("Delete error:", error);
     }
   };
 
   return (
     <div>
-      <h1>Grocery Store</h1>
+      <h1>Grocery Products</h1>
 
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Product name"
+          placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -105,17 +144,27 @@ function App() {
           onChange={(e) => setStock(e.target.value)}
         />
 
-        <button type="submit">Add Product</button>
+        <button type="submit">
+          {editingId ? "Update Product" : "Add Product"}
+        </button>
       </form>
 
       <h2>Products</h2>
 
       {products.map((product) => (
         <div key={product._id}>
-          <h3>{product.name}</h3>
-          <p>Price: ₹{product.price}</p>
-          <p>Category: {product.category}</p>
-          <p>Stock: {product.stock}</p>
+          <p>
+            <strong>{product.name}</strong> | ₹{product.price} |{" "}
+            {product.category} | Stock: {product.stock}
+          </p>
+
+          <button onClick={() => handleEdit(product)}>
+            Edit
+          </button>
+
+          <button onClick={() => handleDelete(product._id)}>
+            Delete
+          </button>
         </div>
       ))}
     </div>
