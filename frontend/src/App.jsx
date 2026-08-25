@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 
 function App() {
-  const API_URL =
-    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/products";
+  const BASE_URL =
+    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev";
 
-  const AUTH_URL =
-    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/auth";
-
-  const CART_URL =
-    "https://glowing-carnival-r4vg6jp96xv5c964-5000.app.github.dev/api/cart";
+  const API_URL = `${BASE_URL}/api/products`;
+  const AUTH_URL = `${BASE_URL}/api/auth`;
+  const CART_URL = `${BASE_URL}/api/cart`;
+  const ORDER_URL = `${BASE_URL}/api/orders`;
 
   // AUTH
   const [isLogin, setIsLogin] = useState(true);
@@ -28,7 +27,13 @@ function App() {
   // CART
   const [cart, setCart] = useState(null);
 
-  // REGISTER / LOGIN
+  // ORDERS
+  const [orders, setOrders] = useState([]);
+
+  // =========================
+  // AUTH
+  // =========================
+
   const handleAuth = async (e) => {
     e.preventDefault();
 
@@ -78,15 +83,18 @@ function App() {
     }
   };
 
-  // LOGOUT
   const handleLogout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setProducts([]);
     setCart(null);
+    setOrders([]);
   };
 
+  // =========================
   // GET PRODUCTS
+  // =========================
+
   useEffect(() => {
     if (!token) return;
 
@@ -94,16 +102,20 @@ function App() {
       try {
         const response = await fetch(API_URL);
         const data = await response.json();
+
         setProducts(data);
       } catch (error) {
-        console.error("Fetch error:", error);
+        console.error("Products error:", error);
       }
     };
 
     fetchProducts();
   }, [token]);
 
+  // =========================
   // GET CART
+  // =========================
+
   useEffect(() => {
     if (!token) return;
 
@@ -116,6 +128,7 @@ function App() {
         });
 
         const data = await response.json();
+
         setCart(data);
       } catch (error) {
         console.error("Cart error:", error);
@@ -125,7 +138,36 @@ function App() {
     fetchCart();
   }, [token]);
 
+  // =========================
+  // GET ORDERS
+  // =========================
+
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch(ORDER_URL, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        setOrders(data);
+      } catch (error) {
+        console.error("Orders error:", error);
+      }
+    };
+
+    fetchOrders();
+  }, [token]);
+
+  // =========================
   // ADD / UPDATE PRODUCT
+  // =========================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -135,6 +177,8 @@ function App() {
       category,
       stock,
     };
+
+    console.log("Sending:", productData);
 
     try {
       const url = editingId
@@ -155,7 +199,9 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Something went wrong");
+        throw new Error(
+          data.message || "Something went wrong"
+        );
       }
 
       if (editingId) {
@@ -175,10 +221,14 @@ function App() {
       setEditingId(null);
     } catch (error) {
       console.error("Product error:", error);
+      alert(error.message);
     }
   };
 
+  // =========================
   // EDIT PRODUCT
+  // =========================
+
   const handleEdit = (product) => {
     setName(product.name);
     setPrice(product.price);
@@ -187,7 +237,10 @@ function App() {
     setEditingId(product._id);
   };
 
+  // =========================
   // DELETE PRODUCT
+  // =========================
+
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`${API_URL}/${id}`, {
@@ -206,10 +259,14 @@ function App() {
       );
     } catch (error) {
       console.error("Delete error:", error);
+      alert(error.message);
     }
   };
 
+  // =========================
   // ADD TO CART
+  // =========================
+
   const handleAddToCart = async (productId) => {
     try {
       const response = await fetch(CART_URL, {
@@ -227,18 +284,27 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to add to cart");
+        throw new Error(
+          data.message || "Failed to add to cart"
+        );
       }
 
       setCart(data);
       alert("Added to cart");
     } catch (error) {
       console.error("Add to cart error:", error);
+      alert(error.message);
     }
   };
 
+  // =========================
   // UPDATE CART QUANTITY
-  const handleUpdateQuantity = async (productId, quantity) => {
+  // =========================
+
+  const handleUpdateQuantity = async (
+    productId,
+    quantity
+  ) => {
     if (quantity < 1) return;
 
     try {
@@ -250,7 +316,9 @@ function App() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ quantity }),
+          body: JSON.stringify({
+            quantity,
+          }),
         }
       );
 
@@ -263,10 +331,14 @@ function App() {
       setCart(data);
     } catch (error) {
       console.error("Update cart error:", error);
+      alert(error.message);
     }
   };
 
+  // =========================
   // REMOVE FROM CART
+  // =========================
+
   const handleRemoveFromCart = async (productId) => {
     try {
       const response = await fetch(
@@ -288,14 +360,95 @@ function App() {
       setCart(data);
     } catch (error) {
       console.error("Remove cart error:", error);
+      alert(error.message);
     }
   };
 
-  // LOGIN / REGISTER SCREEN
+  // =========================
+  // CHECKOUT
+  // =========================
+
+  const handleCheckout = async () => {
+    try {
+      const response = await fetch(ORDER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message);
+      }
+
+      setOrders([...orders, data]);
+
+      setCart({
+        ...cart,
+        items: [],
+      });
+
+      alert("Order placed successfully!");
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert(error.message);
+    }
+  };
+
+  // =========================
+  // UPDATE ORDER STATUS
+  // =========================
+
+  const handleUpdateOrderStatus = async (
+    orderId,
+    status
+  ) => {
+    try {
+      const response = await fetch(
+        `${ORDER_URL}/${orderId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message);
+      }
+
+      setOrders(
+        orders.map((order) =>
+          order._id === orderId ? data : order
+        )
+      );
+    } catch (error) {
+      console.error("Status update error:", error);
+      alert(error.message);
+    }
+  };
+
+  // =========================
+  // LOGIN / REGISTER
+  // =========================
+
   if (!token) {
     return (
-      <div>
-        <h1>{isLogin ? "Login" : "Register"}</h1>
+      <div className="auth-container">
+        <h1>🛒 Grocery Store</h1>
+
+        <h2>
+          {isLogin ? "Login" : "Register"}
+        </h2>
 
         <form onSubmit={handleAuth}>
           {!isLogin && (
@@ -303,7 +456,9 @@ function App() {
               type="text"
               placeholder="Name"
               value={authName}
-              onChange={(e) => setAuthName(e.target.value)}
+              onChange={(e) =>
+                setAuthName(e.target.value)
+              }
             />
           )}
 
@@ -311,7 +466,9 @@ function App() {
             type="email"
             placeholder="Email"
             value={authEmail}
-            onChange={(e) => setAuthEmail(e.target.value)}
+            onChange={(e) =>
+              setAuthEmail(e.target.value)
+            }
           />
 
           <input
@@ -328,7 +485,9 @@ function App() {
           </button>
         </form>
 
-        <button onClick={() => setIsLogin(!isLogin)}>
+        <button
+          onClick={() => setIsLogin(!isLogin)}
+        >
           {isLogin
             ? "Create an account"
             : "Already have an account? Login"}
@@ -337,141 +496,315 @@ function App() {
     );
   }
 
-  // LOGGED-IN SCREEN
+  // =========================
+  // MAIN PAGE
+  // =========================
+
   return (
-    <div>
-      <h1>Grocery Products</h1>
+    <div className="app">
+      <header>
+        <h1>🛒 Grocery Store</h1>
 
-      <button onClick={handleLogout}>Logout</button>
-
-      {/* PRODUCT FORM */}
-      <h2>
-        {editingId ? "Edit Product" : "Add Product"}
-      </h2>
-
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <input
-          type="number"
-          placeholder="Price"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-
-        <input
-          type="text"
-          placeholder="Category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        />
-
-        <input
-          type="number"
-          placeholder="Stock"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-        />
-
-        <button type="submit">
-          {editingId ? "Update Product" : "Add Product"}
+        <button onClick={handleLogout}>
+          Logout
         </button>
-      </form>
+      </header>
+
+      {/* ADD / EDIT PRODUCT */}
+
+      <section>
+        <h2>
+          {editingId
+            ? "Edit Product"
+            : "Add Product"}
+        </h2>
+
+        <form
+          className="product-form"
+          onSubmit={handleSubmit}
+        >
+          <input
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) =>
+              setName(e.target.value)
+            }
+            required
+          />
+
+          <input
+            type="number"
+            placeholder="Price"
+            value={price}
+            onChange={(e) =>
+              setPrice(e.target.value)
+            }
+            required
+          />
+
+          <input
+            type="text"
+            placeholder="Category"
+            value={category}
+            onChange={(e) =>
+              setCategory(e.target.value)
+            }
+            required
+          />
+
+          <input
+            type="number"
+            placeholder="Stock"
+            value={stock}
+            onChange={(e) =>
+              setStock(e.target.value)
+            }
+            required
+          />
+
+          <button type="submit">
+            {editingId
+              ? "Update Product"
+              : "Add Product"}
+          </button>
+
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setName("");
+                setPrice("");
+                setCategory("");
+                setStock("");
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </form>
+      </section>
 
       {/* PRODUCTS */}
-      <h2>Products</h2>
 
-      {products.map((product) => (
-        <div key={product._id}>
-          <p>
-            <strong>{product.name}</strong> | ₹
-            {product.price} | {product.category} | Stock:{" "}
-            {product.stock}
-          </p>
+      <section>
+        <h2>Products</h2>
 
-          <button onClick={() => handleEdit(product)}>
-            Edit
-          </button>
+        <div className="products-grid">
+          {products.map((product) => (
+            <div
+              className="product-card"
+              key={product._id}
+            >
+              <h3>{product.name}</h3>
 
-          <button
-            onClick={() => handleDelete(product._id)}
-          >
-            Delete
-          </button>
+              <p className="price">
+                ₹{product.price}
+              </p>
 
-          <button
-            onClick={() => handleAddToCart(product._id)}
-          >
-            Add to Cart
-          </button>
+              <p>
+                Category: {product.category}
+              </p>
+
+              <p>
+                Stock: {product.stock}
+              </p>
+
+              <div className="product-buttons">
+                <button
+                  onClick={() =>
+                    handleAddToCart(product._id)
+                  }
+                  disabled={product.stock === 0}
+                >
+                  {product.stock === 0
+                    ? "Out of Stock"
+                    : "Add to Cart"}
+                </button>
+
+                <button
+                  onClick={() =>
+                    handleEdit(product)
+                  }
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() =>
+                    handleDelete(product._id)
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </section>
 
       {/* CART */}
-      <h2>Cart</h2>
 
-      {cart && cart.items.length === 0 && (
-        <p>Cart is empty</p>
-      )}
+      <section>
+        <h2>Cart</h2>
 
-      {cart &&
-        cart.items.map((item) => (
-          <div key={item.product._id}>
+        {cart &&
+          cart.items.length === 0 && (
+            <p>Cart is empty</p>
+          )}
+
+        {cart &&
+          cart.items.map((item) => (
+            <div
+              className="cart-item"
+              key={item._id}
+            >
+              <p>
+                {item.product.name} - ₹
+                {item.product.price}
+              </p>
+
+              <button
+                onClick={() =>
+                  handleUpdateQuantity(
+                    item.product._id,
+                    item.quantity - 1
+                  )
+                }
+              >
+                -
+              </button>
+
+              <span>
+                {" "}
+                {item.quantity}{" "}
+              </span>
+
+              <button
+                onClick={() =>
+                  handleUpdateQuantity(
+                    item.product._id,
+                    item.quantity + 1
+                  )
+                }
+              >
+                +
+              </button>
+
+              <button
+                onClick={() =>
+                  handleRemoveFromCart(
+                    item.product._id
+                  )
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+
+        {cart &&
+          cart.items.length > 0 && (
+            <div className="cart-total">
+              <h3>
+                Total: ₹
+                {cart.items.reduce(
+                  (total, item) =>
+                    total +
+                    item.product.price *
+                      item.quantity,
+                  0
+                )}
+              </h3>
+
+              <button
+                onClick={handleCheckout}
+              >
+                Checkout
+              </button>
+            </div>
+          )}
+      </section>
+
+      {/* ORDERS */}
+
+      <section>
+        <h2>My Orders</h2>
+
+        {orders.length === 0 && (
+          <p>No orders yet.</p>
+        )}
+
+        {orders.map((order) => (
+          <div
+            className="order-card"
+            key={order._id}
+          >
+            <h3>Order</h3>
+
             <p>
-              {item.product.name} - ₹{item.product.price}
+              <strong>Order ID:</strong>{" "}
+              {order._id}
             </p>
 
-            <button
-              onClick={() =>
-                handleUpdateQuantity(
-                  item.product._id,
-                  item.quantity - 1
+            <p>
+              <strong>Status:</strong>{" "}
+              {order.status}
+            </p>
+
+            <h4>Items:</h4>
+
+            {order.items.map((item) => (
+              <p key={item._id}>
+                {item.product
+                  ? `${item.product.name} × ${
+                      item.quantity
+                    } = ₹${
+                      item.price *
+                      item.quantity
+                    }`
+                  : `Product deleted × ${
+                      item.quantity
+                    } = ₹${
+                      item.price *
+                      item.quantity
+                    }`}
+              </p>
+            ))}
+
+            <h3>
+              Total: ₹{order.totalAmount}
+            </h3>
+
+            <select
+              value={order.status}
+              onChange={(e) =>
+                handleUpdateOrderStatus(
+                  order._id,
+                  e.target.value
                 )
               }
             >
-              -
-            </button>
+              <option value="Pending">
+                Pending
+              </option>
 
-            <span> {item.quantity} </span>
+              <option value="Confirmed">
+                Confirmed
+              </option>
 
-            <button
-              onClick={() =>
-                handleUpdateQuantity(
-                  item.product._id,
-                  item.quantity + 1
-                )
-              }
-            >
-              +
-            </button>
+              <option value="Shipped">
+                Shipped
+              </option>
 
-            <button
-              onClick={() =>
-                handleRemoveFromCart(item.product._id)
-              }
-            >
-              Remove
-            </button>
+              <option value="Delivered">
+                Delivered
+              </option>
+            </select>
           </div>
         ))}
-
-      {/* CART TOTAL */}
-      {cart && cart.items.length > 0 && (
-        <h3>
-          Total: ₹
-          {cart.items.reduce(
-            (total, item) =>
-              total +
-              item.product.price * item.quantity,
-            0
-          )}
-        </h3>
-      )}
+      </section>
     </div>
   );
 }
