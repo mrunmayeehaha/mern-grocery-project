@@ -1,4 +1,4 @@
-```css
+
 * {
   box-sizing: border-box;
 }
@@ -308,7 +308,7 @@ button:disabled {
     gap: 10px;
   }
 }
-```
+
 /* ---------- PRODUCT UI ---------- */
 
 .section-heading {
