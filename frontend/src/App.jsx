@@ -1,34 +1,60 @@
+
 import { useEffect, useState } from "react";
+import "./App.css";
 
 function App() {
-  const BASE_URL =
-    "https://mern-grocery-project.onrender.com";
+  const BASE_URL = "https://mern-grocery-project.onrender.com";
 
-  const API_URL = `${BASE_URL}/api/products`;
-  const AUTH_URL = `${BASE_URL}/api/auth`;
-  const CART_URL = `${BASE_URL}/api/cart`;
-  const ORDER_URL = `${BASE_URL}/api/orders`;
+  const API_URL = BASE_URL + "/api/products";
+  const AUTH_URL = BASE_URL + "/api/auth";
+  const CART_URL = BASE_URL + "/api/cart";
+  const ORDER_URL = BASE_URL + "/api/orders";
 
+  // =========================
   // AUTH
+  // =========================
+
   const [isLogin, setIsLogin] = useState(true);
   const [authName, setAuthName] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [userRole, setUserRole] = useState(
+    localStorage.getItem("role") || "user"
+  );
 
+  const isAdmin = userRole === "admin";
+
+  // =========================
   // PRODUCTS
+  // =========================
+
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState("");
+
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
+  // =========================
   // CART
+  // =========================
+
   const [cart, setCart] = useState(null);
 
+  // =========================
   // ORDERS
+  // =========================
+
   const [orders, setOrders] = useState([]);
+
+  // =========================
+  // SEARCH / FILTER
+  // =========================
+
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   // =========================
   // AUTH
@@ -62,15 +88,43 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(data.message || "Authentication failed");
       }
 
       if (isLogin) {
         localStorage.setItem("token", data.token);
+
+        /*
+          Decode JWT payload to get user role.
+
+          Your backend already puts:
+          {
+            id: user._id,
+            role: user.role
+          }
+          inside the token.
+        */
+
+        try {
+          const payload = JSON.parse(
+            atob(data.token.split(".")[1])
+          );
+
+          const role = payload.role || "user";
+
+          localStorage.setItem("role", role);
+
+          setUserRole(role);
+        } catch (decodeError) {
+          console.error("Token decode error:", decodeError);
+
+          localStorage.setItem("role", "user");
+          setUserRole("user");
+        }
+
         setToken(data.token);
-        alert("Login successful");
       } else {
-        alert("Registration successful. Now login.");
+        alert("Registration successful! Now login.");
         setIsLogin(true);
       }
 
@@ -85,7 +139,11 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("role");
+
     setToken(null);
+    setUserRole("user");
+
     setProducts([]);
     setCart(null);
     setOrders([]);
@@ -101,9 +159,16 @@ function App() {
     const fetchProducts = async () => {
       try {
         const response = await fetch(API_URL);
+
         const data = await response.json();
 
-        setProducts(data);
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to load products"
+          );
+        }
+
+        setProducts(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Products error:", error);
       }
@@ -128,6 +193,12 @@ function App() {
         });
 
         const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to load cart"
+          );
+        }
 
         setCart(data);
       } catch (error) {
@@ -155,7 +226,13 @@ function App() {
 
         const data = await response.json();
 
-        setOrders(data);
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to load orders"
+          );
+        }
+
+        setOrders(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Orders error:", error);
       }
@@ -166,19 +243,23 @@ function App() {
 
   // =========================
   // ADD / UPDATE PRODUCT
+  // ADMIN ONLY
   // =========================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isAdmin) {
+      alert("Only admins can manage products.");
+      return;
+    }
+
     const productData = {
       name,
-      price,
+      price: Number(price),
       category,
-      stock,
+      stock: Number(stock),
     };
-
-    console.log("Sending:", productData);
 
     try {
       const url = editingId
@@ -205,20 +286,16 @@ function App() {
       }
 
       if (editingId) {
-        setProducts(
-          products.map((product) =>
+        setProducts((prev) =>
+          prev.map((product) =>
             product._id === editingId ? data : product
           )
         );
       } else {
-        setProducts([...products, data]);
+        setProducts((prev) => [...prev, data]);
       }
 
-      setName("");
-      setPrice("");
-      setCategory("");
-      setStock("");
-      setEditingId(null);
+      clearProductForm();
     } catch (error) {
       console.error("Product error:", error);
       alert(error.message);
@@ -226,22 +303,57 @@ function App() {
   };
 
   // =========================
+  // CLEAR PRODUCT FORM
+  // =========================
+
+  const clearProductForm = () => {
+    setName("");
+    setPrice("");
+    setCategory("");
+    setStock("");
+    setEditingId(null);
+  };
+
+  // =========================
   // EDIT PRODUCT
+  // ADMIN ONLY
   // =========================
 
   const handleEdit = (product) => {
-    setName(product.name);
-    setPrice(product.price);
-    setCategory(product.category);
-    setStock(product.stock);
+    if (!isAdmin) {
+      alert("Only admins can edit products.");
+      return;
+    }
+
+    setName(product.name || "");
+    setPrice(product.price ?? "");
+    setCategory(product.category || "");
+    setStock(product.stock ?? "");
     setEditingId(product._id);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   // =========================
   // DELETE PRODUCT
+  // ADMIN ONLY
   // =========================
 
   const handleDelete = async (id) => {
+    if (!isAdmin) {
+      alert("Only admins can delete products.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this product?"
+    );
+
+    if (!confirmDelete) return;
+
     try {
       const response = await fetch(`${API_URL}/${id}`, {
         method: "DELETE",
@@ -250,12 +362,16 @@ function App() {
         },
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error("Failed to delete product");
+        throw new Error(
+          data.message || "Failed to delete product"
+        );
       }
 
-      setProducts(
-        products.filter((product) => product._id !== id)
+      setProducts((prev) =>
+        prev.filter((product) => product._id !== id)
       );
     } catch (error) {
       console.error("Delete error:", error);
@@ -290,7 +406,6 @@ function App() {
       }
 
       setCart(data);
-      alert("Added to cart");
     } catch (error) {
       console.error("Add to cart error:", error);
       alert(error.message);
@@ -325,7 +440,9 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(
+          data.message || "Failed to update cart"
+        );
       }
 
       setCart(data);
@@ -340,6 +457,8 @@ function App() {
   // =========================
 
   const handleRemoveFromCart = async (productId) => {
+    if (!productId) return;
+
     try {
       const response = await fetch(
         `${CART_URL}/${productId}`,
@@ -354,7 +473,9 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(
+          data.message || "Failed to remove item"
+        );
       }
 
       setCart(data);
@@ -380,15 +501,21 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(
+          data.message || "Checkout failed"
+        );
       }
 
-      setOrders([...orders, data]);
+      setOrders((prev) => [...prev, data]);
 
-      setCart({
-        ...cart,
-        items: [],
-      });
+      setCart((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: [],
+            }
+          : prev
+      );
 
       alert("Order placed successfully!");
     } catch (error) {
@@ -399,12 +526,18 @@ function App() {
 
   // =========================
   // UPDATE ORDER STATUS
+  // ADMIN ONLY
   // =========================
 
   const handleUpdateOrderStatus = async (
     orderId,
     status
   ) => {
+    if (!isAdmin) {
+      alert("Only admins can update order status.");
+      return;
+    }
+
     try {
       const response = await fetch(
         `${ORDER_URL}/${orderId}`,
@@ -423,11 +556,13 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(
+          data.message || "Failed to update order"
+        );
       }
 
-      setOrders(
-        orders.map((order) =>
+      setOrders((prev) =>
+        prev.map((order) =>
           order._id === orderId ? data : order
         )
       );
@@ -438,375 +573,823 @@ function App() {
   };
 
   // =========================
-  // LOGIN / REGISTER
+  // FILTER PRODUCTS
+  // =========================
+
+  const categories = [
+    "All",
+    ...new Set(
+      products
+        .map((product) => product.category)
+        .filter(Boolean)
+    ),
+  ];
+
+  const filteredProducts = products.filter((product) => {
+    const productName = product.name || "";
+    const productCategory = product.category || "";
+
+    const matchesSearch = productName
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "All" ||
+      productCategory === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  // =========================
+  // CART TOTAL
+  // =========================
+
+  const cartItems = cart?.items || [];
+
+  const cartTotal = cartItems.reduce((total, item) => {
+    if (!item?.product) {
+      return total;
+    }
+
+    const itemPrice = Number(item.product.price) || 0;
+    const quantity = Number(item.quantity) || 0;
+
+    return total + itemPrice * quantity;
+  }, 0);
+
+  const cartItemCount = cartItems.reduce(
+    (total, item) =>
+      total + (Number(item?.quantity) || 0),
+    0
+  );
+
+  // =========================
+  // LOGIN / REGISTER PAGE
   // =========================
 
   if (!token) {
     return (
-      <div className="auth-container">
-        <h1>🛒 Grocery Store</h1>
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-logo">🛒</div>
 
-        <h2>
-          {isLogin ? "Login" : "Register"}
-        </h2>
+          <h1>FreshCart</h1>
 
-        <form onSubmit={handleAuth}>
-          {!isLogin && (
-            <input
-              type="text"
-              placeholder="Name"
-              value={authName}
-              onChange={(e) =>
-                setAuthName(e.target.value)
-              }
-            />
-          )}
+          <p className="auth-subtitle">
+            Fresh groceries, delivered simply.
+          </p>
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={authEmail}
-            onChange={(e) =>
-              setAuthEmail(e.target.value)
-            }
-          />
+          <div className="auth-tabs">
+            <button
+              className={isLogin ? "active-tab" : ""}
+              onClick={() => setIsLogin(true)}
+            >
+              Login
+            </button>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={authPassword}
-            onChange={(e) =>
-              setAuthPassword(e.target.value)
-            }
-          />
+            <button
+              className={!isLogin ? "active-tab" : ""}
+              onClick={() => setIsLogin(false)}
+            >
+              Register
+            </button>
+          </div>
 
-          <button type="submit">
-            {isLogin ? "Login" : "Register"}
-          </button>
-        </form>
+          <form onSubmit={handleAuth}>
+            {!isLogin && (
+              <div className="input-group">
+                <label>Name</label>
 
-        <button
-          onClick={() => setIsLogin(!isLogin)}
-        >
-          {isLogin
-            ? "Create an account"
-            : "Already have an account? Login"}
-        </button>
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={authName}
+                  onChange={(e) =>
+                    setAuthName(e.target.value)
+                  }
+                  required
+                />
+              </div>
+            )}
+
+            <div className="input-group">
+              <label>Email</label>
+
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={authEmail}
+                onChange={(e) =>
+                  setAuthEmail(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Password</label>
+
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={authPassword}
+                onChange={(e) =>
+                  setAuthPassword(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <button
+              className="primary-btn"
+              type="submit"
+            >
+              {isLogin
+                ? "Login →"
+                : "Create Account →"}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            {isLogin
+              ? "Don't have an account?"
+              : "Already have an account?"}
+
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+            >
+              {isLogin ? " Register" : " Login"}
+            </button>
+          </p>
+        </div>
       </div>
     );
   }
 
   // =========================
-  // MAIN PAGE
+  // MAIN APP
   // =========================
 
   return (
     <div className="app">
-      <header>
-        <h1>🛒 Grocery Store</h1>
 
-        <button onClick={handleLogout}>
-          Logout
-        </button>
+      {/* ================= HEADER ================= */}
+
+      <header className="navbar">
+        <div className="brand">
+          <div className="brand-icon">🛒</div>
+
+          <div>
+            <h1>FreshCart</h1>
+            <span>Grocery Store</span>
+          </div>
+        </div>
+
+        <div className="nav-actions">
+          <a href="#products">Products</a>
+
+          <a href="#cart">
+            Cart
+            {cartItemCount > 0 && (
+              <span className="cart-badge">
+                {cartItemCount}
+              </span>
+            )}
+          </a>
+
+          <a href="#orders">Orders</a>
+
+          {isAdmin && (
+            <span className="admin-badge">
+              Admin
+            </span>
+          )}
+
+          {!isAdmin && (
+            <span className="user-badge">
+              User
+            </span>
+          )}
+
+          <button
+            className="logout-btn"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
-      {/* ADD / EDIT PRODUCT */}
+      {/* ================= HERO ================= */}
 
-      <section>
-        <h2>
-          {editingId
-            ? "Edit Product"
-            : "Add Product"}
-        </h2>
+      <section className="hero">
+        <div className="hero-content">
+          <span className="hero-tag">
+            🌱 Fresh • Simple • Convenient
+          </span>
 
-        <form
-          className="product-form"
-          onSubmit={handleSubmit}
-        >
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
-            required
-          />
+          <h2>
+            Fresh groceries.
+            <br />
+            <span>Delivered to you.</span>
+          </h2>
 
-          <input
-            type="number"
-            placeholder="Price"
-            value={price}
-            onChange={(e) =>
-              setPrice(e.target.value)
-            }
-            required
-          />
+          <p>
+            Shop your everyday essentials from one
+            simple grocery store.
+          </p>
 
-          <input
-            type="text"
-            placeholder="Category"
-            value={category}
-            onChange={(e) =>
-              setCategory(e.target.value)
-            }
-            required
-          />
+          <a
+            href="#products"
+            className="hero-btn"
+          >
+            Shop Now ↓
+          </a>
+        </div>
 
-          <input
-            type="number"
-            placeholder="Stock"
-            value={stock}
-            onChange={(e) =>
-              setStock(e.target.value)
-            }
-            required
-          />
-
-          <button type="submit">
-            {editingId
-              ? "Update Product"
-              : "Add Product"}
-          </button>
-
-          {editingId && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                setName("");
-                setPrice("");
-                setCategory("");
-                setStock("");
-              }}
-            >
-              Cancel
-            </button>
-          )}
-        </form>
-      </section>
-
-      {/* PRODUCTS */}
-
-      <section>
-        <h2>Products</h2>
-
-        <div className="products-grid">
-          {products.map((product) => (
-            <div
-              className="product-card"
-              key={product._id}
-            >
-              <h3>{product.name}</h3>
-
-              <p className="price">
-                ₹{product.price}
-              </p>
-
-              <p>
-                Category: {product.category}
-              </p>
-
-              <p>
-                Stock: {product.stock}
-              </p>
-
-              <div className="product-buttons">
-                <button
-                  onClick={() =>
-                    handleAddToCart(product._id)
-                  }
-                  disabled={product.stock === 0}
-                >
-                  {product.stock === 0
-                    ? "Out of Stock"
-                    : "Add to Cart"}
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleEdit(product)
-                  }
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleDelete(product._id)
-                  }
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="hero-emoji">
+          🥑
         </div>
       </section>
 
-      {/* CART */}
+      {/* ================= ADMIN PRODUCT MANAGEMENT ================= */}
 
-      <section>
-        <h2>Cart</h2>
-
-        {cart &&
-          cart.items.length === 0 && (
-            <p>Cart is empty</p>
-          )}
-
-        {cart &&
-          cart.items.map((item) => (
-            <div
-              className="cart-item"
-              key={item._id}
-            >
-              <p>
-                {item.product.name} - ₹
-                {item.product.price}
-              </p>
-
-              <button
-                onClick={() =>
-                  handleUpdateQuantity(
-                    item.product._id,
-                    item.quantity - 1
-                  )
-                }
-              >
-                -
-              </button>
-
-              <span>
-                {" "}
-                {item.quantity}{" "}
+      {isAdmin && (
+        <section className="admin-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-label">
+                ADMIN PANEL
               </span>
 
-              <button
-                onClick={() =>
-                  handleUpdateQuantity(
-                    item.product._id,
-                    item.quantity + 1
-                  )
-                }
-              >
-                +
-              </button>
-
-              <button
-                onClick={() =>
-                  handleRemoveFromCart(
-                    item.product._id
-                  )
-                }
-              >
-                Remove
-              </button>
+              <h2>
+                {editingId
+                  ? "Edit Product"
+                  : "Add New Product"}
+              </h2>
             </div>
-          ))}
+          </div>
 
-        {cart &&
-          cart.items.length > 0 && (
-            <div className="cart-total">
-              <h3>
-                Total: ₹
-                {cart.items.reduce(
-                  (total, item) =>
-                    total +
-                    item.product.price *
-                      item.quantity,
-                  0
-                )}
-              </h3>
+          <form
+            className="product-form"
+            onSubmit={handleSubmit}
+          >
+            <div className="form-field">
+              <label>Product Name</label>
+
+              <input
+                type="text"
+                placeholder="e.g. Fresh Apples"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Price</label>
+
+              <input
+                type="number"
+                min="0"
+                placeholder="₹ 100"
+                value={price}
+                onChange={(e) =>
+                  setPrice(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Category</label>
+
+              <input
+                type="text"
+                placeholder="e.g. Fruits"
+                value={category}
+                onChange={(e) =>
+                  setCategory(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Stock</label>
+
+              <input
+                type="number"
+                min="0"
+                placeholder="20"
+                value={stock}
+                onChange={(e) =>
+                  setStock(e.target.value)
+                }
+                required
+              />
+            </div>
+
+            <button
+              className="add-product-btn"
+              type="submit"
+            >
+              {editingId
+                ? "Update Product"
+                : "+ Add Product"}
+            </button>
+
+            {editingId && (
+              <button
+                className="cancel-btn"
+                type="button"
+                onClick={clearProductForm}
+              >
+                Cancel
+              </button>
+            )}
+          </form>
+        </section>
+      )}
+
+      {/* ================= PRODUCTS ================= */}
+
+      <section
+        className="products-section"
+        id="products"
+      >
+        <div className="section-top">
+          <div>
+            <span className="section-label">
+              OUR PRODUCTS
+            </span>
+
+            <h2>Fresh Picks</h2>
+
+            <p>
+              Everything you need for your kitchen.
+            </p>
+          </div>
+
+          <div className="product-count">
+            {filteredProducts.length} products
+          </div>
+        </div>
+
+        {/* SEARCH */}
+
+        <div className="search-area">
+          <div className="search-box">
+            🔍
+
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
+          </div>
+
+          <div className="category-buttons">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                className={
+                  selectedCategory === cat
+                    ? "category-active"
+                    : ""
+                }
+                onClick={() =>
+                  setSelectedCategory(cat)
+                }
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredProducts.length === 0 ? (
+          <div className="empty-products">
+            <div>🥕</div>
+
+            <h3>No products found</h3>
+
+            <p>
+              Try another search or category.
+            </p>
+          </div>
+        ) : (
+          <div className="products-grid">
+            {filteredProducts.map((product) => {
+              const productPrice =
+                Number(product.price) || 0;
+
+              const productStock =
+                Number(product.stock) || 0;
+
+              return (
+                <div
+                  className="product-card"
+                  key={product._id}
+                >
+                  <div className="product-image">
+                    {product.category
+                      ?.toLowerCase()
+                      .includes("fruit")
+                      ? "🍎"
+                      : product.category
+                          ?.toLowerCase()
+                          .includes("vegetable")
+                      ? "🥦"
+                      : product.category
+                          ?.toLowerCase()
+                          .includes("dairy")
+                      ? "🥛"
+                      : product.category
+                          ?.toLowerCase()
+                          .includes("bakery")
+                      ? "🥖"
+                      : "🛍️"}
+
+                    {productStock === 0 && (
+                      <span className="stock-badge">
+                        Out of Stock
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="product-info">
+                    <span className="product-category">
+                      {product.category}
+                    </span>
+
+                    <h3>{product.name}</h3>
+
+                    <div className="product-bottom">
+                      <div>
+                        <span className="product-price">
+                          ₹{productPrice}
+                        </span>
+
+                        <span className="stock-text">
+                          {productStock} in stock
+                        </span>
+                      </div>
+
+                      <button
+                        className="cart-btn"
+                        onClick={() =>
+                          handleAddToCart(
+                            product._id
+                          )
+                        }
+                        disabled={
+                          productStock === 0
+                        }
+                      >
+                        {productStock === 0
+                          ? "Sold Out"
+                          : "+ Cart"}
+                      </button>
+                    </div>
+
+                    {/* ADMIN BUTTONS */}
+
+                    {isAdmin && (
+                      <div className="admin-buttons">
+                        <button
+                          onClick={() =>
+                            handleEdit(product)
+                          }
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(
+                              product._id
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ================= CART ================= */}
+
+      <section
+        className="cart-section"
+        id="cart"
+      >
+        <div className="section-top">
+          <div>
+            <span className="section-label">
+              YOUR CART
+            </span>
+
+            <h2>Shopping Cart</h2>
+          </div>
+
+          <span className="cart-count">
+            {cartItemCount} items
+          </span>
+        </div>
+
+        {!cart || cartItems.length === 0 ? (
+          <div className="empty-cart">
+            <div className="empty-icon">
+              🛒
+            </div>
+
+            <h3>Your cart is empty</h3>
+
+            <p>
+              Add some fresh groceries to get started.
+            </p>
+
+            <a href="#products">
+              Browse Products →
+            </a>
+          </div>
+        ) : (
+          <div className="cart-container">
+            <div className="cart-items">
+              {cartItems.map((item) => {
+                if (!item?.product) {
+                  return (
+                    <div
+                      className="cart-item deleted-item"
+                      key={item._id}
+                    >
+                      <div>
+                        <h3>
+                          Product unavailable
+                        </h3>
+
+                        <p>
+                          This product is no longer
+                          available.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const itemPrice =
+                  Number(item.product.price) || 0;
+
+                return (
+                  <div
+                    className="cart-item"
+                    key={item._id}
+                  >
+                    <div className="cart-product-icon">
+                      🛍️
+                    </div>
+
+                    <div className="cart-product-info">
+                      <h3>
+                        {item.product.name}
+                      </h3>
+
+                      <p>
+                        ₹{itemPrice} each
+                      </p>
+                    </div>
+
+                    <div className="quantity-controls">
+                      <button
+                        onClick={() =>
+                          handleUpdateQuantity(
+                            item.product._id,
+                            item.quantity - 1
+                          )
+                        }
+                        disabled={
+                          item.quantity <= 1
+                        }
+                      >
+                        −
+                      </button>
+
+                      <span>
+                        {item.quantity}
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          handleUpdateQuantity(
+                            item.product._id,
+                            item.quantity + 1
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <strong className="item-total">
+                      ₹
+                      {itemPrice *
+                        (Number(item.quantity) ||
+                          0)}
+                    </strong>
+
+                    <button
+                      className="remove-btn"
+                      onClick={() =>
+                        handleRemoveFromCart(
+                          item.product._id
+                        )
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="cart-summary">
+              <span>Cart Total</span>
+
+              <h2>₹{cartTotal}</h2>
 
               <button
+                className="checkout-btn"
                 onClick={handleCheckout}
               >
-                Checkout
+                Checkout →
               </button>
             </div>
-          )}
-      </section>
-
-      {/* ORDERS */}
-
-      <section>
-        <h2>My Orders</h2>
-
-        {orders.length === 0 && (
-          <p>No orders yet.</p>
-        )}
-
-        {orders.map((order) => (
-          <div
-            className="order-card"
-            key={order._id}
-          >
-            <h3>Order</h3>
-
-            <p>
-              <strong>Order ID:</strong>{" "}
-              {order._id}
-            </p>
-
-            <p>
-              <strong>Status:</strong>{" "}
-              {order.status}
-            </p>
-
-            <h4>Items:</h4>
-
-            {order.items.map((item) => (
-              <p key={item._id}>
-                {item.product
-                  ? `${item.product.name} × ${
-                      item.quantity
-                    } = ₹${
-                      item.price *
-                      item.quantity
-                    }`
-                  : `Product deleted × ${
-                      item.quantity
-                    } = ₹${
-                      item.price *
-                      item.quantity
-                    }`}
-              </p>
-            ))}
-
-            <h3>
-              Total: ₹{order.totalAmount}
-            </h3>
-
-            <select
-              value={order.status}
-              onChange={(e) =>
-                handleUpdateOrderStatus(
-                  order._id,
-                  e.target.value
-                )
-              }
-            >
-              <option value="Pending">
-                Pending
-              </option>
-
-              <option value="Confirmed">
-                Confirmed
-              </option>
-
-              <option value="Shipped">
-                Shipped
-              </option>
-
-              <option value="Delivered">
-                Delivered
-              </option>
-            </select>
           </div>
-        ))}
+        )}
       </section>
+
+      {/* ================= ORDERS ================= */}
+
+      <section
+        className="orders-section"
+        id="orders"
+      >
+        <div className="section-top">
+          <div>
+            <span className="section-label">
+              ORDER HISTORY
+            </span>
+
+            <h2>My Orders</h2>
+          </div>
+        </div>
+
+        {orders.length === 0 ? (
+          <div className="empty-orders">
+            <div>📦</div>
+
+            <h3>No orders yet</h3>
+
+            <p>
+              Your completed orders will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="orders-grid">
+            {orders.map((order) => (
+              <div
+                className="order-card"
+                key={order._id}
+              >
+                <div className="order-header">
+                  <div>
+                    <span>ORDER</span>
+
+                    <h3>
+                      #{order._id.slice(-6)}
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`status ${
+                      order.status?.toLowerCase()
+                    }`}
+                  >
+                    {order.status}
+                  </span>
+                </div>
+
+                <div className="order-items">
+                  {order.items?.map((item) => {
+                    const itemPrice =
+                      Number(item.price) || 0;
+
+                    const quantity =
+                      Number(item.quantity) || 0;
+
+                    return (
+                      <div
+                        className="order-item"
+                        key={item._id}
+                      >
+                        <span>
+                          {item.product
+                            ? item.product.name
+                            : "Product deleted"}
+                        </span>
+
+                        <span>
+                          × {quantity}
+                        </span>
+
+                        <strong>
+                          ₹{itemPrice * quantity}
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="order-footer">
+                  <strong>
+                    Total: ₹
+                    {Number(
+                      order.totalAmount
+                    ) || 0}
+                  </strong>
+
+                  {isAdmin ? (
+                    <select
+                      value={order.status}
+                      onChange={(e) =>
+                        handleUpdateOrderStatus(
+                          order._id,
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="Pending">
+                        Pending
+                      </option>
+
+                      <option value="Confirmed">
+                        Confirmed
+                      </option>
+
+                      <option value="Shipped">
+                        Shipped
+                      </option>
+
+                      <option value="Delivered">
+                        Delivered
+                      </option>
+                    </select>
+                  ) : (
+                    <span
+                      className={`status ${
+                        order.status?.toLowerCase()
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ================= FOOTER ================= */}
+
+      <footer>
+        <div className="footer-brand">
+          🛒 FreshCart
+        </div>
+
+        <p>
+          Fresh groceries. Simple shopping.
+        </p>
+
+        <span>
+          © 2026 FreshCart
+        </span>
+      </footer>
     </div>
   );
 }
 
 export default App;
+
