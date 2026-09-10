@@ -1,31 +1,36 @@
-const Cart = require("../models/Cart");
+import { Request, Response } from "express";
+import Cart from "../models/Cart";
 
-const getCart = async (req, res) => {
+const getCart = async (req: Request, res: Response) => {
   try {
-    let cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+    let cart = await Cart.findOne({ user: req.user!.id }).populate(
+      "items.product"
+    );
 
     if (!cart) {
       cart = await Cart.create({
-        user: req.user.id,
+        user: req.user!.id,
         items: [],
       });
     }
 
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
-const addToCart = async (req, res) => {
+const addToCart = async (req: Request, res: Response) => {
   try {
     const { productId, quantity } = req.body;
 
-    let cart = await Cart.findOne({ user: req.user.id });
+    let cart = await Cart.findOne({ user: req.user!.id });
 
     if (!cart) {
       cart = await Cart.create({
-        user: req.user.id,
+        user: req.user!.id,
         items: [{ product: productId, quantity: quantity || 1 }],
       });
     } else {
@@ -49,15 +54,17 @@ const addToCart = async (req, res) => {
 
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
-const updateCartItem = async (req, res) => {
+const updateCartItem = async (req: Request, res: Response) => {
   try {
     const { quantity } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user.id });
+    const cart = await Cart.findOne({ user: req.user!.id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -78,13 +85,15 @@ const updateCartItem = async (req, res) => {
 
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
-const removeFromCart = async (req, res) => {
+const removeFromCart = async (req: Request, res: Response) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
+    const cart = await Cart.findOne({ user: req.user!.id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -99,11 +108,13 @@ const removeFromCart = async (req, res) => {
 
     res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "Server error",
+    });
   }
 };
 
-module.exports = {
+export {
   getCart,
   addToCart,
   updateCartItem,

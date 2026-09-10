@@ -1,13 +1,13 @@
-const express = require("express");
+import express from "express";
 
-const {
+import {
   getCart,
   addToCart,
   updateCartItem,
   removeFromCart,
-} = require("../controllers/cartController");
+} from "../controllers/cartController";
 
-const protect = require("../middleware/authMiddleware");
+import protect from "../middleware/authMiddleware";
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.post("/", protect, addToCart);
 router.put("/:productId", protect, updateCartItem);
 router.delete("/:productId", protect, removeFromCart);
 
-module.exports = router;
+export default router;

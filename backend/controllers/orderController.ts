@@ -1,10 +1,11 @@
-const Order = require("../models/Order");
-const Cart = require("../models/Cart");
+import { Request, Response } from "express";
+import Order from "../models/Order";
+import Cart from "../models/Cart";
 
-const createOrder = async (req, res) => {
+const createOrder = async (req: Request, res: Response) => {
   try {
     const cart = await Cart.findOne({
-      user: req.user.id,
+      user: req.user!.id,
     }).populate("items.product");
 
     if (!cart || cart.items.length === 0) {
@@ -13,66 +14,72 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Check stock
     for (const item of cart.items) {
-      if (item.quantity > item.product.stock) {
+      const product = item.product as any;
+
+      if (item.quantity > product.stock) {
         return res.status(400).json({
-          message: `${item.product.name} has only ${item.product.stock} left`,
+          message: `${product.name} has only ${product.stock} left`,
         });
       }
     }
 
-    const items = cart.items.map((item) => ({
-      product: item.product._id,
-      quantity: item.quantity,
-      price: item.product.price,
-    }));
+    const items = cart.items.map((item) => {
+      const product = item.product as any;
+
+      return {
+        product: product._id,
+        quantity: item.quantity,
+        price: product.price,
+      };
+    });
 
     const totalAmount = cart.items.reduce(
-      (total, item) =>
-        total + item.product.price * item.quantity,
+      (total, item) => {
+        const product = item.product as any;
+        return total + product.price * item.quantity;
+      },
       0
     );
 
     const order = await Order.create({
-      user: req.user.id,
+      user: req.user!.id,
       items,
       totalAmount,
     });
 
-    // Reduce stock
     for (const item of cart.items) {
-      item.product.stock -= item.quantity;
-      await item.product.save();
+      const product = item.product as any;
+      product.stock -= item.quantity;
+      await product.save();
     }
 
-    // Clear cart
     cart.items = [];
     await cart.save();
 
     res.status(201).json(order);
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: error instanceof Error ? error.message : "Server error",
     });
   }
 };
 
-const getOrders = async (req, res) => {
+const getOrders = async (req: Request, res: Response)=> {
   try {
     const orders = await Order.find({
-      user: req.user.id,
+      user: req.user!.id,
     }).populate("items.product");
 
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: error instanceof Error ? error.message : "Server error",
     });
   }
 };
 
-const updateOrderStatus = async (req, res) => {
+const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { status } = req.body;
 
@@ -91,12 +98,12 @@ const updateOrderStatus = async (req, res) => {
     res.status(200).json(order);
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: error instanceof Error ? error.message : "Server error",
     });
   }
 };
 
-module.exports = {
+export {
   createOrder,
   getOrders,
   updateOrderStatus,

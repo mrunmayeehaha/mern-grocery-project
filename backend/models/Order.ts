@@ -1,6 +1,19 @@
-const mongoose = require("mongoose");
+import mongoose, { Document, Types } from "mongoose";
 
-const orderItemSchema = new mongoose.Schema({
+interface IOrderItem {
+  product: Types.ObjectId;
+  quantity: number;
+  price: number;
+}
+
+interface IOrder extends Document {
+  user: Types.ObjectId;
+  items: IOrderItem[];
+  totalAmount: number;
+  status: string;
+}
+
+const orderItemSchema = new mongoose.Schema<IOrderItem>({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
@@ -16,7 +29,7 @@ const orderItemSchema = new mongoose.Schema({
   },
 });
 
-const orderSchema = new mongoose.Schema(
+const orderSchema = new mongoose.Schema<IOrder>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -39,4 +52,6 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Order", orderSchema);
+const Order = mongoose.model<IOrder>("Order", orderSchema);
+
+export default Order;

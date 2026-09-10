@@ -1,6 +1,8 @@
-const Product = require("../models/Product");
+import { Request, Response } from "express";
 
-const getProducts = async (req, res) => {
+import Product from "../models/Product";
+
+const getProducts = async (req: Request, res: Response) => {
     try {
         const products = await Product.find();
 
@@ -12,7 +14,7 @@ const getProducts = async (req, res) => {
     }
 };
 
-const createProduct = async (req, res) => {
+const createProduct = async (req: Request, res: Response) => {
     try {
         console.log("Received by backend:", req.body);
 
@@ -24,13 +26,12 @@ const createProduct = async (req, res) => {
 
         res.status(500).json({
             message: "Failed to create product",
-            error: error.message,
-            details: error.errors
+            error: error instanceof Error ? error.message : "Unknown error"
         });
     }
 };
 
-const updateProduct = async (req, res) => {
+const updateProduct = async (req: Request, res: Response) => {
     try {
         const product = await Product.findByIdAndUpdate(
             req.params.id,
@@ -52,7 +53,7 @@ const updateProduct = async (req, res) => {
     }
 };
 
-const deleteProduct = async (req, res) => {
+const deleteProduct = async (req: Request, res: Response) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
 
@@ -72,7 +73,7 @@ const deleteProduct = async (req, res) => {
     }
 };
 
-module.exports = {
+export {
     getProducts,
     createProduct,
     updateProduct,
