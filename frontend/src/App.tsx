@@ -1,6 +1,40 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import "./App.css";
+
+interface Product {
+  _id: string;
+  name: string;
+  price: number;
+  category: string;
+  stock: number;
+}
+
+interface CartItem {
+  _id: string;
+  product: Product | null;
+  quantity: number;
+}
+
+interface Cart {
+  _id: string;
+  items: CartItem[];
+}
+
+interface OrderItem {
+  _id: string;
+  product: Product | null;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  _id: string;
+  items: OrderItem[];
+  totalAmount: number;
+  status: string;
+}
+
 
 function App() {
   const BASE_URL = "https://mern-grocery-project.onrender.com";
@@ -34,24 +68,10 @@ function App() {
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState("");
 
-  const [products, setProducts] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-
-  // =========================
-  // CART
-  // =========================
-
-  const [cart, setCart] = useState(null);
-
-  // =========================
-  // ORDERS
-  // =========================
-
-  const [orders, setOrders] = useState([]);
-
-  // =========================
-  // SEARCH / FILTER
-  // =========================
+  const [products, setProducts] = useState<Product[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -60,7 +80,7 @@ function App() {
   // AUTH
   // =========================
 
-  const handleAuth = async (e) => {
+  const handleAuth = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     try {
@@ -94,16 +114,7 @@ function App() {
       if (isLogin) {
         localStorage.setItem("token", data.token);
 
-        /*
-          Decode JWT payload to get user role.
-
-          Your backend already puts:
-          {
-            id: user._id,
-            role: user.role
-          }
-          inside the token.
-        */
+       
 
         try {
           const payload = JSON.parse(
@@ -133,7 +144,7 @@ function App() {
       setAuthPassword("");
     } catch (error) {
       console.error("Auth error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -246,7 +257,7 @@ function App() {
   // ADMIN ONLY
   // =========================
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!isAdmin) {
@@ -298,7 +309,8 @@ function App() {
       clearProductForm();
     } catch (error) {
       console.error("Product error:", error);
-      alert(error.message);
+      alert(error);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -319,16 +331,16 @@ function App() {
   // ADMIN ONLY
   // =========================
 
-  const handleEdit = (product) => {
+  const handleEdit = (product: Product) => {
     if (!isAdmin) {
       alert("Only admins can edit products.");
       return;
     }
 
     setName(product.name || "");
-    setPrice(product.price ?? "");
-    setCategory(product.category || "");
-    setStock(product.stock ?? "");
+    setPrice(product.price?.toString() ?? "");
+    setStock(product.stock?.toString() ?? "");
+    setCategory(product.category || ""); 
     setEditingId(product._id);
 
     window.scrollTo({
@@ -342,7 +354,7 @@ function App() {
   // ADMIN ONLY
   // =========================
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!isAdmin) {
       alert("Only admins can delete products.");
       return;
@@ -375,7 +387,7 @@ function App() {
       );
     } catch (error) {
       console.error("Delete error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -383,7 +395,7 @@ function App() {
   // ADD TO CART
   // =========================
 
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (productId: string) => {
     try {
       const response = await fetch(CART_URL, {
         method: "POST",
@@ -408,7 +420,7 @@ function App() {
       setCart(data);
     } catch (error) {
       console.error("Add to cart error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -417,8 +429,8 @@ function App() {
   // =========================
 
   const handleUpdateQuantity = async (
-    productId,
-    quantity
+    productId: string,
+    quantity: number
   ) => {
     if (quantity < 1) return;
 
@@ -448,7 +460,7 @@ function App() {
       setCart(data);
     } catch (error) {
       console.error("Update cart error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -456,7 +468,7 @@ function App() {
   // REMOVE FROM CART
   // =========================
 
-  const handleRemoveFromCart = async (productId) => {
+  const handleRemoveFromCart = async (productId: string) => {
     if (!productId) return;
 
     try {
@@ -481,7 +493,7 @@ function App() {
       setCart(data);
     } catch (error) {
       console.error("Remove cart error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -520,7 +532,7 @@ function App() {
       alert("Order placed successfully!");
     } catch (error) {
       console.error("Checkout error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -530,8 +542,8 @@ function App() {
   // =========================
 
   const handleUpdateOrderStatus = async (
-    orderId,
-    status
+    orderId: string,
+    status: string
   ) => {
     if (!isAdmin) {
       alert("Only admins can update order status.");
@@ -568,7 +580,7 @@ function App() {
       );
     } catch (error) {
       console.error("Status update error:", error);
-      alert(error.message);
+      alert(error instanceof Error ? error.message : "Something went wrong");
     }
   };
 
@@ -1175,7 +1187,7 @@ function App() {
                       <button
                         onClick={() =>
                           handleUpdateQuantity(
-                            item.product._id,
+                            item.product!._id,
                             item.quantity - 1
                           )
                         }
@@ -1193,7 +1205,7 @@ function App() {
                       <button
                         onClick={() =>
                           handleUpdateQuantity(
-                            item.product._id,
+                            item.product!._id,
                             item.quantity + 1
                           )
                         }
@@ -1213,7 +1225,7 @@ function App() {
                       className="remove-btn"
                       onClick={() =>
                         handleRemoveFromCart(
-                          item.product._id
+                          item.product!._id
                         )
                       }
                     >
