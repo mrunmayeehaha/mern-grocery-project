@@ -37,7 +37,7 @@ interface Order {
 
 
 function App() {
-  const BASE_URL = "https://mern-grocery-project.onrender.com";
+  const BASE_URL = " https://mern-grocery-project-1.onrender.com";
 
   const API_URL = BASE_URL + "/api/products";
   const AUTH_URL = BASE_URL + "/api/auth";
